@@ -1,0 +1,47 @@
+-- k0xx.exe loading screen
+print("k0xx.exe loading...")
+
+-- Roblox UI notification
+pcall(function()
+    game.StarterGui:SetCore("SendNotification", {
+        Title = "k0xx.exe";
+        Text = "Script successfully injected!";
+        Duration = 5;
+    })
+end)
+
+-- Wait for game and player to fully load
+repeat wait() until game:IsLoaded() and game.Players.LocalPlayer
+
+local player = game.Players.LocalPlayer
+
+-- Function to find the bike
+local function findBike()
+    local char = player.Character or player.CharacterAdded:Wait()
+    for _, v in pairs(char:GetChildren()) do
+        if v:IsA("Model") and v.Name:lower():find("bike") then
+            return v
+        end
+    end
+    return nil
+end
+
+-- Try to boost the speed
+local bike = findBike()
+if bike then
+    print("Bike found! Attempting speed boost...")
+
+    -- Look for a Speed or similar value
+    local speedVal = bike:FindFirstChild("Speed") or bike:FindFirstChildWhichIsA("NumberValue")
+
+    if speedVal and speedVal:IsA("NumberValue") then
+        speedVal.Value = 999
+        print("Speed set to 999.")
+    else
+        print("Speed value not found.")
+    end
+else
+    print("No bike detected in character.")
+end
+
+-- Future: Add auto-farm, teleport, anti-AFK, etc. here
