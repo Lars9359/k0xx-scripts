@@ -26,7 +26,7 @@ local function findBike()
     return nil
 end
 
--- Try to boost the speed
+-- Try to boost the bike speed
 local bike = findBike()
 if bike then
     print("Bike found! Attempting speed boost...")
@@ -44,4 +44,89 @@ else
     print("No bike detected in character.")
 end
 
--- Future: Add auto-farm, teleport, anti-AFK, etc. here
+-- === WALK SPEED SLIDER GUI ===
+
+-- Create ScreenGui
+local playerGui = player:WaitForChild("PlayerGui")
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "WalkSpeedChanger"
+screenGui.Parent = playerGui
+
+-- Create Frame
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 300, 0, 100)
+frame.Position = UDim2.new(0.5, -150, 0.8, 0)
+frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+frame.BorderSizePixel = 0
+frame.Parent = screenGui
+
+-- Create TextLabel
+local label = Instance.new("TextLabel")
+label.Size = UDim2.new(1, -20, 0, 30)
+label.Position = UDim2.new(0, 10, 0, 10)
+label.BackgroundTransparency = 1
+label.TextColor3 = Color3.fromRGB(255, 255, 255)
+label.Font = Enum.Font.SourceSansBold
+label.TextSize = 20
+label.Text = "WalkSpeed: 16"
+label.TextXAlignment = Enum.TextXAlignment.Left
+label.Parent = frame
+
+-- Create Slider Bar
+local sliderBar = Instance.new("Frame")
+sliderBar.Size = UDim2.new(1, -20, 0, 20)
+sliderBar.Position = UDim2.new(0, 10, 0, 50)
+sliderBar.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+sliderBar.Parent = frame
+
+-- Create Slider Handle
+local sliderHandle = Instance.new("Frame")
+sliderHandle.Size = UDim2.new(0, 20, 1, 0)
+sliderHandle.Position = UDim2.new(0, 0, 0, 0)
+sliderHandle.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
+sliderHandle.Parent = sliderBar
+sliderHandle.ZIndex = 2
+sliderHandle.Active = true
+sliderHandle.Selectable = true
+
+local minSpeed = 16
+local maxSpeed = 200
+
+local function updateWalkSpeed(x)
+    x = math.clamp(x, 0, sliderBar.AbsoluteSize.X)
+    local percent = x / sliderBar.AbsoluteSize.X
+    local speed = math.floor(minSpeed + (maxSpeed - minSpeed) * percent)
+    
+    sliderHandle.Position = UDim2.new(percent, 0, 0, 0)
+    label.Text = "WalkSpeed: " .. speed
+    
+    if player.Character and player.Character:FindFirstChildOfClass("Humanoid") then
+        player.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = speed
+    end
+end
+
+local dragging = false
+
+sliderHandle.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+    end
+end)
+
+sliderHandle.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = false
+    end
+end)
+
+sliderBar.InputChanged:Connect(function(input)
+    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local relativeX = input.Position.X - sliderBar.AbsolutePosition.X
+        updateWalkSpeed(relativeX)
+    end
+end)
+
+-- Initialize slider position at default walk speed (16)
+wait(0.1)
+updateWalkSpeed((16 - minSpeed) / (maxSpeed - minSpeed) * sliderBar.AbsoluteSize.X)
