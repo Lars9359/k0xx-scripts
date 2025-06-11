@@ -1,7 +1,6 @@
 -- k0xx.exe loading screen
 print("k0xx.exe loading...")
 
--- Roblox UI notification
 pcall(function()
     game.StarterGui:SetCore("SendNotification", {
         Title = "k0xx.exe";
@@ -10,33 +9,12 @@ pcall(function()
     })
 end)
 
--- Wait for game and player to fully load
 repeat wait() until game:IsLoaded() and game.Players.LocalPlayer
 
 local player = game.Players.LocalPlayer
-
--- Function to find the moped/bike in character
-local function findBike()
-    local char = player.Character or player.CharacterAdded:Wait()
-    for _, v in pairs(char:GetChildren()) do
-        if v:IsA("Model") and v.Name:lower():find("bike") or v.Name:lower():find("moped") then
-            return v
-        end
-    end
-    return nil
-end
-
-local bike = findBike()
-if bike then
-    print("Bike/moped found!")
-else
-    print("No bike or moped detected in character.")
-end
-
--- === GUI SETUP ===
-
 local playerGui = player:WaitForChild("PlayerGui")
 
+-- Create ScreenGui and Frame for slider once
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "SpeedChanger"
 screenGui.Parent = playerGui
@@ -46,9 +24,9 @@ frame.Size = UDim2.new(0, 320, 0, 140)
 frame.Position = UDim2.new(0.5, -160, 0.75, 0)
 frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 frame.BorderSizePixel = 0
+frame.Visible = false -- hidden by default
 frame.Parent = screenGui
 
--- Title label
 local titleLabel = Instance.new("TextLabel")
 titleLabel.Size = UDim2.new(1, -20, 0, 30)
 titleLabel.Position = UDim2.new(0, 10, 0, 10)
@@ -60,7 +38,6 @@ titleLabel.Text = "k0xx.exe Speed Changer"
 titleLabel.TextXAlignment = Enum.TextXAlignment.Center
 titleLabel.Parent = frame
 
--- Moped Speed Slider Label
 local bikeLabel = Instance.new("TextLabel")
 bikeLabel.Size = UDim2.new(1, -20, 0, 25)
 bikeLabel.Position = UDim2.new(0, 10, 0, 45)
@@ -72,14 +49,12 @@ bikeLabel.Text = "Moped Speed: N/A"
 bikeLabel.TextXAlignment = Enum.TextXAlignment.Left
 bikeLabel.Parent = frame
 
--- Moped Slider Bar
 local bikeSliderBar = Instance.new("Frame")
 bikeSliderBar.Size = UDim2.new(1, -20, 0, 20)
 bikeSliderBar.Position = UDim2.new(0, 10, 0, 75)
 bikeSliderBar.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
 bikeSliderBar.Parent = frame
 
--- Moped Slider Handle
 local bikeSliderHandle = Instance.new("Frame")
 bikeSliderHandle.Size = UDim2.new(0, 20, 1, 0)
 bikeSliderHandle.Position = UDim2.new(0, 0, 0, 0)
@@ -90,20 +65,21 @@ bikeSliderHandle.Active = true
 bikeSliderHandle.Selectable = true
 
 local draggingBike = false
-local minBikeSpeed = 50     -- minimum moped speed
-local maxBikeSpeed = 1500   -- max speed to allow (adjust as needed)
+local minBikeSpeed = 50
+local maxBikeSpeed = 1500
+
+local currentBike = nil -- the bike model you are currently on
 
 local function updateBikeSpeed(x)
-    if not bike then return end
+    if not currentBike then return end
     x = math.clamp(x, 0, bikeSliderBar.AbsoluteSize.X)
     local percent = x / bikeSliderBar.AbsoluteSize.X
     local speed = math.floor(minBikeSpeed + (maxBikeSpeed - minBikeSpeed) * percent)
-    
+
     bikeSliderHandle.Position = UDim2.new(percent, 0, 0, 0)
     bikeLabel.Text = "Moped Speed: " .. speed
-    
-    -- Find the speed value in the bike and update it
-    local speedVal = bike:FindFirstChild("Speed") or bike:FindFirstChildWhichIsA("NumberValue")
+
+    local speedVal = currentBike:FindFirstChild("Speed") or currentBike:FindFirstChildWhichIsA("NumberValue")
     if speedVal and speedVal:IsA("NumberValue") then
         speedVal.Value = speed
     end
@@ -128,20 +104,87 @@ bikeSliderBar.InputChanged:Connect(function(input)
     end
 end)
 
--- Initialize slider position if bike found
-if bike then
-    wait(0.1)
-    local currentSpeed = 0
-    local speedVal = bike:FindFirstChild("Speed") or bike:FindFirstChildWhichIsA("NumberValue")
-    if speedVal and speedVal:IsA("NumberValue") then
-        currentSpeed = speedVal.Value
-    else
-        currentSpeed = minBikeSpeed
+-- Function to find bike/moped model from character
+local function findBikeModel()
+    local char = player.Character
+    if not char then return nil end
+    for _, v in pairs(char:GetChildren()) do
+        if v:IsA("Model") and (v.Name:lower():find("bike") or v.Name:lower():find("moped")) then
+            return v
+        end
     end
-    local posX = ((currentSpeed - minBikeSpeed) / (maxBikeSpeed - minBikeSpeed)) * bikeSliderBar.AbsoluteSize.X
-    updateBikeSpeed(posX)
-else
-    bikeLabel.Text = "Moped Speed: Not found"
+    return nil
 end
 
--- Optional: you can add walk speed slider here too, if you want
+-- Detect when player mounts or dismounts a bike/moped
+-- We'll track Humanoid.SeatPart (or SeatOccupied event) if available
+
+local function onBikeMounted(bikeModel)
+    currentBike = bikeModel
+    frame.Visible = true
+
+    -- Initialize slider to current speed or minBikeSpeed
+    local speedVal = bikeModel:FindFirstChild("Speed") or bikeModel:FindFirstChildWhichIsA("NumberValue")
+    local currentSpeed = speedVal and speedVal.Value or minBikeSpeed
+    wait(0.1)
+    local posX = ((currentSpeed - minBikeSpeed) / (maxBikeSpeed - minBikeSpeed)) * bikeSliderBar.AbsoluteSize.X
+    updateBikeSpeed(posX)
+
+    print("Mounted bike/moped, slider enabled.")
+end
+
+local function onBikeDismounted()
+    if currentBike then
+        -- Optionally reset speed to default (16)
+        local speedVal = currentBike:FindFirstChild("Speed") or currentBike:FindFirstChildWhichIsA("NumberValue")
+        if speedVal and speedVal:IsA("NumberValue") then
+            speedVal.Value = 100 -- or any default speed you want on dismount
+        end
+    end
+    currentBike = nil
+    frame.Visible = false
+    print("Dismounted bike/moped, slider hidden.")
+end
+
+-- Track seat changes on the player's character Humanoid (common method)
+local function setupSeatWatcher()
+    local char = player.Character or player.CharacterAdded:Wait()
+    local humanoid = char:WaitForChild("Humanoid")
+
+    -- Check every second if seated and seat is a bike seat
+    local lastSeated = false
+
+    while true do
+        wait(1)
+        local seated = humanoid.SeatPart ~= nil
+        if seated and not lastSeated then
+            -- Just got on a seat
+            local seat = humanoid.SeatPart
+            -- Check if the seat.Parent is a bike/moped model
+            if seat and seat.Parent then
+                local bikeModel = seat.Parent
+                if bikeModel:IsA("Model") and (bikeModel.Name:lower():find("bike") or bikeModel.Name:lower():find("moped")) then
+                    onBikeMounted(bikeModel)
+                else
+                    -- Not a bike model, hide slider just in case
+                    onBikeDismounted()
+                end
+            end
+        elseif not seated and lastSeated then
+            -- Just got off the seat
+            onBikeDismounted()
+        end
+        lastSeated = seated
+    end
+end
+
+-- Connect on character spawn
+player.CharacterAdded:Connect(function(char)
+    wait(1)
+    setupSeatWatcher()
+end)
+
+-- Initial setup on current character
+if player.Character then
+    setupSeatWatcher()
+end
