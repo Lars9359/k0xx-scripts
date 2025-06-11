@@ -15,118 +15,133 @@ repeat wait() until game:IsLoaded() and game.Players.LocalPlayer
 
 local player = game.Players.LocalPlayer
 
--- Function to find the bike
+-- Function to find the moped/bike in character
 local function findBike()
     local char = player.Character or player.CharacterAdded:Wait()
     for _, v in pairs(char:GetChildren()) do
-        if v:IsA("Model") and v.Name:lower():find("bike") then
+        if v:IsA("Model") and v.Name:lower():find("bike") or v.Name:lower():find("moped") then
             return v
         end
     end
     return nil
 end
 
--- Try to boost the bike speed
 local bike = findBike()
 if bike then
-    print("Bike found! Attempting speed boost...")
-
-    -- Look for a Speed or similar value
-    local speedVal = bike:FindFirstChild("Speed") or bike:FindFirstChildWhichIsA("NumberValue")
-
-    if speedVal and speedVal:IsA("NumberValue") then
-        speedVal.Value = 999
-        print("Speed set to 999.")
-    else
-        print("Speed value not found.")
-    end
+    print("Bike/moped found!")
 else
-    print("No bike detected in character.")
+    print("No bike or moped detected in character.")
 end
 
--- === WALK SPEED SLIDER GUI ===
+-- === GUI SETUP ===
 
--- Create ScreenGui
 local playerGui = player:WaitForChild("PlayerGui")
 
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "WalkSpeedChanger"
+screenGui.Name = "SpeedChanger"
 screenGui.Parent = playerGui
 
--- Create Frame
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 300, 0, 100)
-frame.Position = UDim2.new(0.5, -150, 0.8, 0)
+frame.Size = UDim2.new(0, 320, 0, 140)
+frame.Position = UDim2.new(0.5, -160, 0.75, 0)
 frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 frame.BorderSizePixel = 0
 frame.Parent = screenGui
 
--- Create TextLabel
-local label = Instance.new("TextLabel")
-label.Size = UDim2.new(1, -20, 0, 30)
-label.Position = UDim2.new(0, 10, 0, 10)
-label.BackgroundTransparency = 1
-label.TextColor3 = Color3.fromRGB(255, 255, 255)
-label.Font = Enum.Font.SourceSansBold
-label.TextSize = 20
-label.Text = "WalkSpeed: 16"
-label.TextXAlignment = Enum.TextXAlignment.Left
-label.Parent = frame
+-- Title label
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Size = UDim2.new(1, -20, 0, 30)
+titleLabel.Position = UDim2.new(0, 10, 0, 10)
+titleLabel.BackgroundTransparency = 1
+titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleLabel.Font = Enum.Font.SourceSansBold
+titleLabel.TextSize = 22
+titleLabel.Text = "k0xx.exe Speed Changer"
+titleLabel.TextXAlignment = Enum.TextXAlignment.Center
+titleLabel.Parent = frame
 
--- Create Slider Bar
-local sliderBar = Instance.new("Frame")
-sliderBar.Size = UDim2.new(1, -20, 0, 20)
-sliderBar.Position = UDim2.new(0, 10, 0, 50)
-sliderBar.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
-sliderBar.Parent = frame
+-- Moped Speed Slider Label
+local bikeLabel = Instance.new("TextLabel")
+bikeLabel.Size = UDim2.new(1, -20, 0, 25)
+bikeLabel.Position = UDim2.new(0, 10, 0, 45)
+bikeLabel.BackgroundTransparency = 1
+bikeLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+bikeLabel.Font = Enum.Font.SourceSans
+bikeLabel.TextSize = 18
+bikeLabel.Text = "Moped Speed: N/A"
+bikeLabel.TextXAlignment = Enum.TextXAlignment.Left
+bikeLabel.Parent = frame
 
--- Create Slider Handle
-local sliderHandle = Instance.new("Frame")
-sliderHandle.Size = UDim2.new(0, 20, 1, 0)
-sliderHandle.Position = UDim2.new(0, 0, 0, 0)
-sliderHandle.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
-sliderHandle.Parent = sliderBar
-sliderHandle.ZIndex = 2
-sliderHandle.Active = true
-sliderHandle.Selectable = true
+-- Moped Slider Bar
+local bikeSliderBar = Instance.new("Frame")
+bikeSliderBar.Size = UDim2.new(1, -20, 0, 20)
+bikeSliderBar.Position = UDim2.new(0, 10, 0, 75)
+bikeSliderBar.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+bikeSliderBar.Parent = frame
 
-local minSpeed = 16
-local maxSpeed = 200
+-- Moped Slider Handle
+local bikeSliderHandle = Instance.new("Frame")
+bikeSliderHandle.Size = UDim2.new(0, 20, 1, 0)
+bikeSliderHandle.Position = UDim2.new(0, 0, 0, 0)
+bikeSliderHandle.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
+bikeSliderHandle.Parent = bikeSliderBar
+bikeSliderHandle.ZIndex = 2
+bikeSliderHandle.Active = true
+bikeSliderHandle.Selectable = true
 
-local function updateWalkSpeed(x)
-    x = math.clamp(x, 0, sliderBar.AbsoluteSize.X)
-    local percent = x / sliderBar.AbsoluteSize.X
-    local speed = math.floor(minSpeed + (maxSpeed - minSpeed) * percent)
+local draggingBike = false
+local minBikeSpeed = 50     -- minimum moped speed
+local maxBikeSpeed = 1500   -- max speed to allow (adjust as needed)
+
+local function updateBikeSpeed(x)
+    if not bike then return end
+    x = math.clamp(x, 0, bikeSliderBar.AbsoluteSize.X)
+    local percent = x / bikeSliderBar.AbsoluteSize.X
+    local speed = math.floor(minBikeSpeed + (maxBikeSpeed - minBikeSpeed) * percent)
     
-    sliderHandle.Position = UDim2.new(percent, 0, 0, 0)
-    label.Text = "WalkSpeed: " .. speed
+    bikeSliderHandle.Position = UDim2.new(percent, 0, 0, 0)
+    bikeLabel.Text = "Moped Speed: " .. speed
     
-    if player.Character and player.Character:FindFirstChildOfClass("Humanoid") then
-        player.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = speed
+    -- Find the speed value in the bike and update it
+    local speedVal = bike:FindFirstChild("Speed") or bike:FindFirstChildWhichIsA("NumberValue")
+    if speedVal and speedVal:IsA("NumberValue") then
+        speedVal.Value = speed
     end
 end
 
-local dragging = false
-
-sliderHandle.InputBegan:Connect(function(input)
+bikeSliderHandle.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = true
+        draggingBike = true
     end
 end)
 
-sliderHandle.InputEnded:Connect(function(input)
+bikeSliderHandle.InputEnded:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = false
+        draggingBike = false
     end
 end)
 
-sliderBar.InputChanged:Connect(function(input)
-    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-        local relativeX = input.Position.X - sliderBar.AbsolutePosition.X
-        updateWalkSpeed(relativeX)
+bikeSliderBar.InputChanged:Connect(function(input)
+    if draggingBike and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local relativeX = input.Position.X - bikeSliderBar.AbsolutePosition.X
+        updateBikeSpeed(relativeX)
     end
 end)
 
--- Initialize slider position at default walk speed (16)
-wait(0.1)
-updateWalkSpeed((16 - minSpeed) / (maxSpeed - minSpeed) * sliderBar.AbsoluteSize.X)
+-- Initialize slider position if bike found
+if bike then
+    wait(0.1)
+    local currentSpeed = 0
+    local speedVal = bike:FindFirstChild("Speed") or bike:FindFirstChildWhichIsA("NumberValue")
+    if speedVal and speedVal:IsA("NumberValue") then
+        currentSpeed = speedVal.Value
+    else
+        currentSpeed = minBikeSpeed
+    end
+    local posX = ((currentSpeed - minBikeSpeed) / (maxBikeSpeed - minBikeSpeed)) * bikeSliderBar.AbsoluteSize.X
+    updateBikeSpeed(posX)
+else
+    bikeLabel.Text = "Moped Speed: Not found"
+end
+
+-- Optional: you can add walk speed slider here too, if you want
